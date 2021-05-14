@@ -1,0 +1,57 @@
+plugins {
+    id 'java'
+    id 'org.jetbrains.kotlin.jvm' version '1.5.0'
+    id 'maven'
+}
+
+group 'dev.entao.tcp'
+version '0.0.1'
+
+repositories {
+    maven { url 'http://maven.app800.cn/repository/public/' }
+    mavenCentral()
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib"
+    //    implementation "org.jetbrains.kotlin:kotlin-reflect"
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+
+compileKotlin {
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+}
+
+
+task sourcesJar(type: Jar) {
+    archiveClassifier.set('sources')
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives jar
+    archives sourcesJar
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: 'http://maven.app800.cn/repository/public/') {
+                authentication(userName: ARCHIVA_USERNAME, password: ARCHIVA_PASSWORD)
+            }
+            pom.artifactId = "tcp"
+            pom.groupId = project.group
+            pom.version = project.version
+            pom.packaging = 'jar'
+
+        }
+    }
+}
