@@ -27,7 +27,7 @@ internal interface TcpLoopCallback {
 
 internal class TcpLoop(val bufferFrame: BufferFrame, val callback: TcpLoopCallback) {
     private var thread: Thread? = null
-    private val selector: Selector by lazy { Selector.open() }
+    private var selector: Selector? = null
     private val channelList: LinkedList<SelectionKey> = LinkedList()
     private val buf = ByteBuffer.allocate(4096)
     private var preTime: Long = 0L
@@ -36,27 +36,29 @@ internal class TcpLoop(val bufferFrame: BufferFrame, val callback: TcpLoopCallba
     var readIdleSeconds: Int = 90
 
 
-    val isOpen: Boolean get() = selector.isOpen
+    val isOpen: Boolean get() = selector?.isOpen ?: false
     val channels: ArrayList<SelectionKey> get() = ArrayList(channelList)
 
     val size: Int get() = channelList.size
 
-    fun startLoop() {
+    fun startLoop(): Boolean {
         assert(channelList.isEmpty())
+        selector = Selector.open() ?: return false
         val t = Thread(::run, "TcpWorkerLoop")
         t.isDaemon = true
         t.start()
         this.thread = t
+        return true
     }
 
     fun stopLoop() {
         for (key in channels) {
             closeChannel(key)
         }
-        if (this.selector.isOpen) {
-            this.selector.selectNow()
+        if (this.selector?.isOpen == true) {
+            this.selector?.selectNow()
         }
-        this.selector.close()
+        this.selector?.close()
         if (thread?.isAlive == true) {
             thread?.join(30_000)
         }
@@ -64,7 +66,7 @@ internal class TcpLoop(val bufferFrame: BufferFrame, val callback: TcpLoopCallba
     }
 
     fun add(channel: AbstractSelectableChannel, op: Int) {
-        val sel = this.selector
+        val sel = this.selector ?: return
         if (!sel.isOpen) {
             channel.close()
             return
@@ -99,7 +101,8 @@ internal class TcpLoop(val bufferFrame: BufferFrame, val callback: TcpLoopCallba
 
     private fun run() {
         try {
-            runService(this.selector)
+            val sel = this.selector ?: return
+            runService(sel)
         } catch (ex: Exception) {
             ex.printStackTrace()
         }
